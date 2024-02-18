@@ -80,7 +80,7 @@ if uploaded_file is not None:
             params["n_neighbors"] = K
         elif clf_name == "SVM":
             C = st.sidebar.slider("C", 10**-2, 10.0**3)
-            gamma = st.sidebar.slider("gamma", 0.000001, 1.0)
+            gamma = st.sidebar.slider("gamma", 0.000001, 1.0, step=0.000001)
             params["C"] = C
             params["gamma"] = gamma
         return params
