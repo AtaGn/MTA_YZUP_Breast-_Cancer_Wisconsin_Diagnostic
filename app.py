@@ -8,72 +8,78 @@ from sklearn.metrics import classification_report, confusion_matrix
 from sklearn.neighbors import KNeighborsClassifier
 from sklearn.svm import SVC
 from sklearn.naive_bayes import GaussianNB
+from sklearn.preprocessing import StandardScaler
 
-st.set_page_config(page_title="Milli Teknoloji Akademisi: Meme Kanseri Teşhisi Projesi", page_icon=":robot_face:", layout="centered")
+class BreastCancerDiagnosisApp:
+    def __init__(self):
+        st.set_page_config(page_title="Milli Teknoloji Akademisi: Meme Kanseri Teşhisi Projesi", page_icon=":robot_face:", layout="centered")
+        st.title('Milli Teknoloji Akademisi: Meme Kanseri Teşhisi Projesi')
+        self.data = None
+        self.X_train = None
+        self.X_test = None
+        self.Y_train = None
+        self.Y_test = None
+        self.classifier = None
+        
+    def load_data(self):
+        st.sidebar.header('Görev 1: Veri Seti Yükleme')
+        uploaded_file = st.sidebar.file_uploader("Veri seti seçin", type=['csv'])
+        if uploaded_file is not None:
+            self.data = pd.read_csv(uploaded_file)
+            st.write("Veri Setinin İlk 10 Satırı", self.data.head(10))
+            st.write("Veri Seti Sütunları", self.data.columns.tolist())
+            return True
+        return False
 
-# Streamlit sayfasını başlat
-st.title('Milli Teknoloji Akademisi: Meme Kanseri Teşhisi Projesi', )
+    def preprocess_data(self):
+        st.write('# Görev 2: Veri Seti Yükleme')
+        self.data.drop(['Unnamed: 32', 'id'], axis=1, inplace=True)
+        st.write("Temizlenmiş Veri Setinin Son 10 Satırı", self.data.tail(10))
+        labelencoder_Y = LabelEncoder()
+        self.data['diagnosis'] = labelencoder_Y.fit_transform(self.data['diagnosis'])
+        plt.figure(figsize=(10,10))
+        sns.heatmap(self.data.corr(), cmap="RdYlGn")
+        st.pyplot(plt)
+        self.split_data()
+        self.MalignantBenignPlot()
+        self.scale_features()
 
-# Görev 1: Veri yükleme ve gösterme
-st.sidebar.header('Görev 1: Veri Seti Yükleme')
-uploaded_file = st.sidebar.file_uploader("Veri seti seçin", type=['csv'])
-if uploaded_file is not None:
-    data = pd.read_csv(uploaded_file)
-    st.write("Veri Setinin İlk 10 Satırı", data.head(10))
-    st.write("Veri Seti Sütunları", data.columns.tolist())
+    def MalignantBenignPlot(self):
+        malignant = self.data[self.data['diagnosis'] == 1]
+        benign = self.data[self.data['diagnosis'] == 0]
+        fig, ax = plt.subplots()
+        ax.scatter(malignant['radius_mean'], malignant['texture_mean'], color='red', label='Malignant', alpha=0.5)
+        ax.scatter(benign['radius_mean'], benign['texture_mean'], color='green', label='Benign', alpha=0.5)
+        ax.set_xlabel('Radius Mean')
+        ax.set_ylabel('Texture Mean')
+        ax.legend()
+        st.pyplot(fig)
 
-    # Görev 2: Veri ön işleme
-    st.write('# Görev 2: Veri Seti Yükleme')
-    data.drop(['Unnamed: 32', 'id'], axis=1, inplace=True)  # gereksiz sütunları temizle
-    st.write("Temizlenmiş Veri Setinin Son 10 Satırı", data.tail(10))
-    
-    # 'diagnosis' sütununu 0 ve 1'e dönüştür
-    labelencoder_Y = LabelEncoder()
-    data['diagnosis'] = labelencoder_Y.fit_transform(data['diagnosis'])
-    
-    # Korelasyon matrisi
-    drop_list1 = ['perimeter_mean','radius_mean','compactness_mean','concave points_mean',
-                'radius_se','perimeter_se','radius_worst','perimeter_worst','compactness_worst',
-                'concave points_worst','compactness_se','concave points_se','texture_worst','area_worst']
-    plt.figure(figsize=(10,10))
-    sns.heatmap(data.corr())
-    st.pyplot(plt)
-    
+    def split_data(self):
+        X = self.data.drop(['diagnosis'], axis="columns")
+        # X = self.data[['texture_mean', 'area_mean', 'smoothness_mean', 'concavity_mean',
+        # 'area_se', 'concavity_se', 'fractal_dimension_se', 'smoothness_worst',
+        # 'concavity_worst', 'symmetry_worst']]
+        Y = self.data['diagnosis']
+        self.X_train, self.X_test, self.Y_train, self.Y_test = train_test_split(X, Y, test_size=0.2, random_state=42)
 
+    def scale_features(self):
+        # Öznitelikleri ölçeklendirme
+        scaler = StandardScaler()
+        self.X_train = scaler.fit_transform(self.X_train)
+        self.X_test = scaler.transform(self.X_test)
 
+    def model_selection_and_training(self):
+        st.sidebar.header('Görev 3: Model Seçimi')
+        classifier_name = st.sidebar.selectbox("Classifier seçin", ("KNN", "SVM", "Naive Bayes"))
+        params = self.add_parameter_ui(classifier_name)
+        if classifier_name in ["KNN", "SVM"]:
+            self.classifier = self.perform_grid_search(self.X_train, self.Y_train, classifier_name, params)
+        
+        self.classifier = self.get_classifier(classifier_name, params)
+        self.classifier.fit(self.X_train, self.Y_train)
 
-
-    # Malignant ve Benign dataları ayırma ve görselleştirme
-    malignant = data[data['diagnosis'] == 1]
-    benign = data[data['diagnosis'] == 0]
-    fig, ax = plt.subplots()
-    ax.scatter(malignant['radius_mean'], malignant['texture_mean'], color='red', label='Malignant', alpha=0.5)
-    ax.scatter(benign['radius_mean'], benign['texture_mean'], color='green', label='Benign', alpha=0.5)
-    ax.set_xlabel('Radius Mean')
-    ax.set_ylabel('Texture Mean')
-    ax.legend()
-    st.pyplot(fig)
-    
-
-
-
-    # Veriyi eğitim ve test setlerine ayırma
-
-    # X = data[['texture_mean', 'area_mean', 'smoothness_mean', 'concavity_mean',
-    # 'area_se', 'concavity_se', 'fractal_dimension_se', 'smoothness_worst',
-    # 'concavity_worst', 'symmetry_worst']]
-
-    X = data.drop(['diagnosis'], axis="columns")
-
-    Y = data['diagnosis']
-    X_train, X_test, Y_train, Y_test = train_test_split(X, Y, test_size=0.2, random_state=42)
-
-
-    # Görev 3: Model seçimi ve eğitimi
-    st.sidebar.header('Görev 3: Model Seçimi')
-    classifier_name = st.sidebar.selectbox("Classifier seçin", ("KNN", "SVM", "Naive Bayes"))
-    
-    def add_parameter_ui(clf_name):
+    def add_parameter_ui(self, clf_name):
         params = dict()
         if clf_name == "KNN":
             K = st.sidebar.slider("K", 1, 30)
@@ -84,22 +90,16 @@ if uploaded_file is not None:
             params["C"] = C
             params["gamma"] = gamma
         return params
-    
-    params = add_parameter_ui(classifier_name)
-    
-    def get_classifier(clf_name, params):
-        clf = None
-        if clf_name == "KNN":
-            clf = KNeighborsClassifier(n_neighbors=params["n_neighbors"])
-        elif clf_name == "SVM":
-            clf = SVC(C=params["C"], gamma=params["gamma"])
-        else:
-            clf = GaussianNB()
-        return clf
-    
-    
 
-    def perform_grid_search(X_train, Y_train, clf_name, params):
+    def get_classifier(self, clf_name, params):
+        if clf_name == "KNN":
+            return KNeighborsClassifier(n_neighbors=params["n_neighbors"])
+        elif clf_name == "SVM":
+            return SVC(C=params["C"], gamma=params["gamma"])
+        else:
+            return GaussianNB()
+
+    def perform_grid_search(self, X_train, Y_train, clf_name, params):
         st.write("Gridsearch: ")
         if clf_name == "KNN":
             param_grid = {'n_neighbors': list(range(1, 31))}
@@ -108,7 +108,7 @@ if uploaded_file is not None:
             best_params = grid_search.best_params_
             st.write(f"En iyi parametreler: {best_params}")
             st.write(f"Train Accuracy: {grid_search.score(X_train, Y_train)}")
-            st.write(f"Test Accuracy: {grid_search.score(X_test, Y_test)}")
+            st.write(f"Test Accuracy: {grid_search.score(self.X_test, self.Y_test)}")
             return KNeighborsClassifier(**best_params)
         elif clf_name == "SVM":
             param_grid = {'C': [10**(i-2) for i in range(6)], 'gamma': [10**(-i-1) for i in range(6)]}
@@ -117,36 +117,30 @@ if uploaded_file is not None:
             best_params = grid_search.best_params_
             st.write(f"En iyi parametreler: {best_params}")
             st.write(f"Train Accuracy: {grid_search.score(X_train, Y_train)}")
-            st.write(f"Test Accuracy: {grid_search.score(X_test, Y_test)}")
+            st.write(f"Test Accuracy: {grid_search.score(self.X_test, self.Y_test)}")
             return SVC(**best_params)
         else:
-            # Naive Bayes için grid search uygulanmaz
             return GaussianNB()
-        
 
-    # Model seçimi ve eğitimi kısmında get_classifier fonksiyonu çağrılırken
+    def model_analysis(self):
+        st.write('# Görev 4: Model Analizi')
+        Y_pred = self.classifier.predict(self.X_test)
+        st.write(f"Model: {type(self.classifier).__name__}")
+        st.write("Test Accuracy:", self.classifier.score(self.X_test, self.Y_test))
+        st.write("Precision, Recall, F1-Score ve Confusion Matrix:")
+        st.text("ㅤ\n"+classification_report(self.Y_test, Y_pred))
+        cm = confusion_matrix(self.Y_test, Y_pred)
+        fig, ax = plt.subplots()
+        sns.heatmap(cm, annot=True, ax=ax, cmap="RdYlGn")
+        ax.set_xlabel('Tahmin Edilen')
+        ax.set_ylabel('Gerçek')
+        st.pyplot(fig)
 
-    # GridSearchCV ile en iyi parametreleri bul ve modeli bu parametrelerle eğit
-    if classifier_name in ["KNN", "SVM"]:  # Naive Bayes için gerekli değil
-        clf = perform_grid_search(X_train, Y_train, classifier_name, params)
+    def run(self):
+        if self.load_data():
+            self.preprocess_data()
+            self.model_selection_and_training()
+            self.model_analysis()
 
-    clf = get_classifier(classifier_name, params)
-
-
-    clf.fit(X_train, Y_train)  # En iyi parametrelerle modeli eğit
-
-    Y_pred = clf.predict(X_test)
-    
-    # Görev 4: Model analizi
-    st.write('# Görev 4: Model Analizi')
-
-    st.write(f"Model: {classifier_name}")
-    st.write("Test Accuracy:", clf.score(X_test, Y_test))
-    st.write("Precision, Recall, F1-Score ve Confusion Matrix:")
-    st.text("ㅤ\n"+classification_report(Y_test, Y_pred))
-    cm = confusion_matrix(Y_test, Y_pred)
-    fig, ax = plt.subplots()
-    sns.heatmap(cm, annot=True, ax=ax)
-    ax.set_xlabel('Tahmin Edilen')
-    ax.set_ylabel('Gerçek')
-    st.pyplot(fig)
+app = BreastCancerDiagnosisApp()
+app.run()
