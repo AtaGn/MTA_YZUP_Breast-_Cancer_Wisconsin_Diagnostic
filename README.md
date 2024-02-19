@@ -18,3 +18,6 @@ This project is an interactive web application built with Streamlit, designed to
 3. **Select and Train Model**: Choose a model and adjust its parameters. The app trains the model with the dataset.
 4. **Analyze Model**: Review the model's performance metrics and confusion matrix.
 
+**github link**: https://github.com/AtaGn/MTA_YZUP_Breast-_Cancer_Wisconsin_Diagnostic
+
+**online link**: https://mta-yzup-breast-cancer-wisconsin-diagnostic.streamlit.app/
